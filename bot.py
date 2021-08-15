@@ -22,7 +22,7 @@ driver = nonebot.get_driver()
 driver.register_adapter("cqhttp", CQHTTPBot)
 
 config = nonebot.get_driver().config
-config.project_root = os.path.dirname(__file__)
+config.project_root = os.path.dirname(os.path.dirname(__file__))
 
 nonebot.load_from_toml("pyproject.toml")
 
