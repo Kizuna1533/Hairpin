@@ -23,8 +23,9 @@ driver.register_adapter("cqhttp", CQHTTPBot)
 
 config = nonebot.get_driver().config
 config.project_root = os.path.dirname(os.path.dirname(__file__))
+# config.project_root = "/Users/south/Code/"
 
-nonebot.load_from_toml("pyproject.toml")
+nonebot.load_plugins("src/plugins")
 
 if __name__ == "__main__":
     nonebot.logger.warning("Always use `nb run` to start the bot instead of manually running!")

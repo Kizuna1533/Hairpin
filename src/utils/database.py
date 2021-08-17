@@ -203,8 +203,7 @@ class Dynamic_Subscription(Base):
                     try:
                         session_result = await session.execute(select(Dynamic_Subscription).where(
                             Dynamic_Subscription.uid == self.uid))
-                        res = [x for x in session_result.scalars().all()]
-                        result = Result.ListResult(error=False, info="Exist", result=res)
+                        result = Result.ListResult(error=False, info="Exist", result=session_result.scalars().all())
                     except NoResultFound:
                         result = Result.ListResult(error=False, info="Select_No_Result", result=[])
             except MultipleResultsFound:
@@ -220,6 +219,109 @@ class Dynamic_Subscription(Base):
                 async with session.begin():
                     try:
                         session_result = await session.execute(select(distinct(Dynamic_Subscription.uid)))
+                        result = Result.ListResult(error=False, info="Exist", result=session_result.scalars().all())
+                    except NoResultFound:
+                        result = Result.ListResult(error=False, info="Select_No_Result", result=[])
+            except MultipleResultsFound:
+                result = Result.ListResult(error=True, info="Multiple_Results_Found", result=[])
+            except Exception as e:
+                result = Result.ListResult(error=True, info=repr(e), result=[])
+        return result
+
+
+class Live_Subscription(Base):
+    __tablename__ = "Live_Subscription"
+    id = Column(Integer, nullable=False, primary_key=True, index=True, autoincrement=True)
+    uid = Column(Integer, nullable=False, comment="B站UID")
+    subscriber_id = Column(Integer, nullable=False, comment="QQ/群号")
+    send_type = Column(String(10), nullable=False, comment="1：QQ 2：群")
+
+    def __init__(self, uid: str, subscriber_id: str, send_type: str):
+        self.uid = uid
+        self.subscriber_id = subscriber_id
+        self.send_type = send_type
+
+    async def insert(self):
+        async_session = DB().get_async_session()
+        async with async_session() as session:
+            try:
+                async with session.begin():
+                    try:
+                        result = await self.select()
+                        if not result.error and result.result == 1:
+                            session.add(self)
+                            result = Result.IntResult(error=False, info="Insert_Success", result=1)
+                    except Exception as e:
+                        result = Result.IntResult(error=True, info=repr(e), result=-1)
+                await session.commit()
+            except MultipleResultsFound:
+                result = Result.IntResult(error=True, info="Multiple_Results_Found", result=-1)
+            except Exception as e:
+                result = Result.IntResult(error=True, info=repr(e), result=-1)
+        return result
+
+    async def delete(self):
+        async_session = DB().get_async_session()
+        async with async_session() as session:
+            try:
+                async with session.begin():
+                    try:
+                        result = await self.select()
+                        if not result.error and isinstance(result.result, Live_Subscription):
+                            await session.delete(result.result)
+                            result = Result.IntResult(error=False, info="Delete_Success", result=1)
+                    except Exception as e:
+                        result = Result.IntResult(error=True, info=repr(e), result=-1)
+                await session.commit()
+            except MultipleResultsFound:
+                result = Result.IntResult(error=True, info="Multiple_Results_Found", result=-1)
+            except Exception as e:
+                result = Result.IntResult(error=True, info=repr(e), result=-1)
+        return result
+
+    async def select(self):
+        async_session = DB().get_async_session()
+        async with async_session() as session:
+            try:
+                async with session.begin():
+                    try:
+                        session_result = await session.execute(select(Live_Subscription).where(
+                            Live_Subscription.uid == self.uid).where(
+                            Live_Subscription.subscriber_id == self.subscriber_id))
+                        subscription = session_result.scalar_one()
+                        result = Result.IntResult(error=False, info="Exist", result=subscription)
+                    except NoResultFound:
+                        result = Result.IntResult(error=False, info="Select_No_Result", result=1)
+            except MultipleResultsFound:
+                result = Result.IntResult(error=True, info="Multiple_Results_Found", result=-1)
+            except Exception as e:
+                result = Result.IntResult(error=True, info=repr(e), result=-1)
+        return result
+
+    async def select_subscribers(self):
+        async_session = DB().get_async_session()
+        async with async_session() as session:
+            try:
+                async with session.begin():
+                    try:
+                        session_result = await session.execute(select(Live_Subscription).where(
+                            Live_Subscription.uid == self.uid))
+                        result = Result.ListResult(error=False, info="Exist", result=session_result.scalars().all())
+                    except NoResultFound:
+                        result = Result.ListResult(error=False, info="Select_No_Result", result=[])
+            except MultipleResultsFound:
+                result = Result.ListResult(error=True, info="Multiple_Results_Found", result=[])
+            except Exception as e:
+                result = Result.ListResult(error=True, info=repr(e), result=[])
+        return result
+
+    async def select_uids(self):
+        async_session = DB().get_async_session()
+        async with async_session() as session:
+            try:
+                async with session.begin():
+                    try:
+                        session_result = await session.execute(select(distinct(Live_Subscription.uid)))
                         result = Result.ListResult(error=False, info="Exist", result=session_result.scalars().all())
                     except NoResultFound:
                         result = Result.ListResult(error=False, info="Select_No_Result", result=[])
