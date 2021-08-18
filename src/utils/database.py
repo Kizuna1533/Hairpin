@@ -3,7 +3,7 @@
 from datetime import datetime
 
 import nonebot
-from sqlalchemy import Column, Integer, String, BLOB, DATETIME, select, distinct, func
+from sqlalchemy import Column, Integer, String, BLOB, DATETIME, select, distinct, func, Boolean, Text
 from sqlalchemy.exc import NoResultFound, MultipleResultsFound
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.ext.declarative import declarative_base
@@ -129,14 +129,16 @@ class Dynamic_Record(Base):
 class Dynamic_Subscription(Base):
     __tablename__ = "Dynamic_Subscription"
     id = Column(Integer, nullable=False, primary_key=True, index=True, autoincrement=True)
-    uid = Column(String(25), nullable=False, comment="B站UID")
-    subscriber_id = Column(String(25), nullable=False, comment="QQ/群号")
-    mold = Column(Integer, nullable=False, comment="1：QQ 2：群")
+    bot_id = Column(String(16), nullable=False, comment="Bot_id")
+    uid = Column(String(16), nullable=False, comment="B站UID")
+    subscriber_id = Column(String(16), nullable=False, comment="QQ/群号")
+    send_type = Column(String(10), nullable=False, comment="私聊/群")
 
-    def __init__(self, uid: str, subscriber_id: str, mold: int):
+    def __init__(self, bot_id: str, uid: str, subscriber_id: str, send_type: str):
+        self.bot_id = bot_id
         self.uid = uid
         self.subscriber_id = subscriber_id
-        self.mold = mold
+        self.send_type = send_type
 
     async def insert(self):
         async_session = DB().get_async_session()
@@ -232,8 +234,8 @@ class Dynamic_Subscription(Base):
 class Live_Subscription(Base):
     __tablename__ = "Live_Subscription"
     id = Column(Integer, nullable=False, primary_key=True, index=True, autoincrement=True)
-    uid = Column(Integer, nullable=False, comment="B站UID")
-    subscriber_id = Column(Integer, nullable=False, comment="QQ/群号")
+    uid = Column(String(16), nullable=False, comment="B站UID")
+    subscriber_id = Column(String(16), nullable=False, comment="QQ/群号")
     send_type = Column(String(10), nullable=False, comment="1：QQ 2：群")
 
     def __init__(self, uid: str, subscriber_id: str, send_type: str):
@@ -322,6 +324,92 @@ class Live_Subscription(Base):
                 async with session.begin():
                     try:
                         session_result = await session.execute(select(distinct(Live_Subscription.uid)))
+                        result = Result.ListResult(error=False, info="Exist", result=session_result.scalars().all())
+                    except NoResultFound:
+                        result = Result.ListResult(error=False, info="Select_No_Result", result=[])
+            except MultipleResultsFound:
+                result = Result.ListResult(error=True, info="Multiple_Results_Found", result=[])
+            except Exception as e:
+                result = Result.ListResult(error=True, info=repr(e), result=[])
+        return result
+
+
+class Welcome_Subscription(Base):
+    __tablename__ = "Welcome_Subscription"
+    id = Column(Integer, nullable=False, primary_key=True, index=True, autoincrement=True)
+    subscriber_id = Column(String(16), nullable=False, comment="群号")
+    status = Column(Boolean, nullable=False, comment="状态")
+    content = Column(Text, nullable=False, comment="内容")
+
+    def __init__(self, subscriber_id: str, status: bool, content: str):
+        self.subscriber_id = subscriber_id
+        self.status = status
+        self.content = content
+
+    async def insert(self):
+        async_session = DB().get_async_session()
+        async with async_session() as session:
+            try:
+                async with session.begin():
+                    try:
+                        result = await self.select()
+                        if not result.error and result.result == 1:
+                            session.add(self)
+                            result = Result.IntResult(error=False, info="Insert_Success", result=1)
+                    except Exception as e:
+                        result = Result.IntResult(error=True, info=repr(e), result=-1)
+                await session.commit()
+            except MultipleResultsFound:
+                result = Result.IntResult(error=True, info="Multiple_Results_Found", result=-1)
+            except Exception as e:
+                result = Result.IntResult(error=True, info=repr(e), result=-1)
+        return result
+
+    async def delete(self):
+        async_session = DB().get_async_session()
+        async with async_session() as session:
+            try:
+                async with session.begin():
+                    try:
+                        result = await self.select()
+                        if not result.error and isinstance(result.result, Welcome_Subscription):
+                            await session.delete(result.result)
+                            result = Result.IntResult(error=False, info="Delete_Success", result=1)
+                    except Exception as e:
+                        result = Result.IntResult(error=True, info=repr(e), result=-1)
+                await session.commit()
+            except MultipleResultsFound:
+                result = Result.IntResult(error=True, info="Multiple_Results_Found", result=-1)
+            except Exception as e:
+                result = Result.IntResult(error=True, info=repr(e), result=-1)
+        return result
+
+    async def select(self):
+        async_session = DB().get_async_session()
+        async with async_session() as session:
+            try:
+                async with session.begin():
+                    try:
+                        session_result = await session.execute(select(Welcome_Subscription).where(
+                            Welcome_Subscription.subscriber_id == self.subscriber_id))
+                        subscription = session_result.scalar_one()
+                        result = Result.IntResult(error=False, info="Exist", result=subscription)
+                    except NoResultFound:
+                        result = Result.IntResult(error=False, info="Select_No_Result", result=1)
+            except MultipleResultsFound:
+                result = Result.IntResult(error=True, info="Multiple_Results_Found", result=-1)
+            except Exception as e:
+                result = Result.IntResult(error=True, info=repr(e), result=-1)
+        return result
+
+    async def select_subscribers(self):
+        async_session = DB().get_async_session()
+        async with async_session() as session:
+            try:
+                async with session.begin():
+                    try:
+                        session_result = await session.execute(
+                            select(Welcome_Subscription).where(Welcome_Subscription.status == self.status))
                         result = Result.ListResult(error=False, info="Exist", result=session_result.scalars().all())
                     except NoResultFound:
                         result = Result.ListResult(error=False, info="Select_No_Result", result=[])

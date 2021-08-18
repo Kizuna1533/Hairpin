@@ -1,9 +1,9 @@
 # @Author: South
 # @Date: 2021-08-14 10:56
 import nonebot
-from nonebot import get_driver, on_command
+from nonebot import get_driver, on_command, logger
 from nonebot.adapters import Bot, Event
-from nonebot.adapters.cqhttp import MessageSegment
+from nonebot.adapters.cqhttp import MessageSegment, PrivateMessageEvent, GroupMessageEvent
 from nonebot.exception import ActionFailed
 from nonebot.permission import SUPERUSER
 from nonebot.typing import T_State
@@ -29,37 +29,36 @@ async def dynamic_receive(bot: Bot, event: Event, state: T_State):
 
 
 @dynamic_program_on.got("uid", prompt="请输入要订阅的B站用户的UID")
-async def dynamic_subscription(bot: Bot, event: Event, state: T_State):
-    if event.message_type == "group":
-        print(state["uid"])
-        dynamic_subscription = Dynamic_Subscription(uid=state["uid"], subscriber_id=event.group_id, mold=2)
-        result = await dynamic_subscription.insert()
-        await dynamic_program_on.finish(str(result.info))
-    elif event.message_type == "private":
-        dynamic_subscription = Dynamic_Subscription(uid=state["uid"], subscriber_id=event.user_id, mold=1)
-        result = await dynamic_subscription.insert()
-        await dynamic_program_on.finish(str(result.info))
+async def dynamic_subscription(bot: Bot, event: GroupMessageEvent, state: T_State):
+    dynamic_subscription = Dynamic_Subscription(bot_id=bot.self_id, uid=state["uid"], subscriber_id=event.group_id,
+                                                send_type=event.message_type)
+    result = await dynamic_subscription.insert()
+    await dynamic_program_on.finish(str(result.info))
+
+
+@dynamic_program_on.got("uid", prompt="请输入要订阅的B站用户的UID")
+async def dynamic_subscription(bot: Bot, event: PrivateMessageEvent, state: T_State):
+    dynamic_subscription = Dynamic_Subscription(bot_id=bot.self_id, uid=state["uid"], subscriber_id=event.user_id,
+                                                send_type=event.message_type)
+    result = await dynamic_subscription.insert()
+    await dynamic_program_on.finish(str(result.info))
 
 
 async def dynamic_push(subscribers, dynamic_id, image):
-    bot = nonebot.get_bots()[__BOT_ID]
     message = f"https://t.bilibili.com/{dynamic_id}?tab=2 \n" + MessageSegment.image(f"base64://{image}")
-    # message = MessageSegment.image(f"base64://{image}")
-    # message = "1"
     for subscriber in subscribers:
-        print('-' * 30)
-        print(subscriber.subscriber_id, dynamic_id)
-        print('-' * 30)
-        if subscriber.mold == 1:
-            send_type = "private"
+        try:
+            bot = nonebot.get_bots()[str(subscriber.bot_id)]
+        except KeyError:
+            logger.error(f"推送失败，Bot（{subscriber.bot_id}）未连接")
+            return
+        if subscriber.send_type == "private":
             send_id = "user_id"
         else:
-            send_type = "group"
             send_id = "group_id"
-        print(send_id, send_type, subscriber.subscriber_id)
-        print(type(send_id), type(send_type), type(subscriber.subscriber_id))
+        print(send_id, subscriber.send_type, subscriber.subscriber_id)
         try:
-            await bot.call_api("send_" + send_type + "_msg", **{
+            await bot.call_api("send_" + subscriber.send_type + "_msg", **{
                 "message": message,
                 "group_id": subscriber.subscriber_id
             })
@@ -70,12 +69,9 @@ async def dynamic_push(subscribers, dynamic_id, image):
 @scheduler.scheduled_job("interval", seconds=10, id="dynamic_push")
 async def dynamic_spider():
     # 初始化实例
-    dynamic_subscription = Dynamic_Subscription(uid="0", subscriber_id="0", mold=0)
+    dynamic_subscription = Dynamic_Subscription(bot_id="0", uid="0", subscriber_id="0", send_type="")
     # 数据库取全部uids
     uids = await dynamic_subscription.select_uids()
-    print('-' * 30)
-    print(uids.result)
-    print('-' * 30)
     # 遍历uids
     if len(uids.result) > 0:
         for uid in uids.result:
@@ -121,9 +117,6 @@ async def dynamic_spider():
                                 if flag:
                                     dynamic_result = await get_dynamic_list(uid, dynamic_result["next_offset"])
                         # 遍历临时组中的动态
-                        print('-' * 30)
-                        print(tmp)
-                        print('-' * 30)
                         tmp.sort()
                         for dynamic_id in tmp:
                             image = await get_dynamics_screenshot(dynamic_id)

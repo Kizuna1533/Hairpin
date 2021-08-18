@@ -20,18 +20,17 @@ live_program_on = on_command("开启直播推送", priority=3, permission=SUPERU
 
 
 @live_program_on.handle()
-async def dynamic_receive(bot: Bot, event: Event, state: T_State):
+async def live_receive(bot: Bot, event: Event, state: T_State):
     args = str(event.get_message()).strip()
-    print(args)
     if args:
         state["uid"] = args
 
 
 @live_program_on.got("uid", prompt="请输入要订阅的B站用户的UID")
-async def dynamic_subscription(bot: Bot, event: Event, state: T_State):
-    dynamic_subscription = Live_Subscription(uid=state["uid"], subscriber_id=event.group_id,
-                                             send_type=event.message_type)
-    result = await dynamic_subscription.insert()
+async def live_subscription(bot: Bot, event: Event, state: T_State):
+    live_subscription = Live_Subscription(uid=state["uid"], subscriber_id=event.group_id,
+                                          send_type=event.message_type)
+    result = await live_subscription.insert()
     await live_program_on.finish(str(result.info))
 
 

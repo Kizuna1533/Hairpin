@@ -1,5 +1,3 @@
-# @Author: South
-# @Date: 2021-08-17 15:51
 from pydantic import BaseSettings
 
 
