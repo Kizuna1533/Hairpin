@@ -8,10 +8,8 @@ from nonebot.permission import SUPERUSER
 from nonebot.typing import T_State
 
 from src.utils.database import Welcome_Subscription
-from .config import Config
 
 global_config = get_driver().config
-config = Config(**global_config.dict())
 
 welcome_dict = {}
 
