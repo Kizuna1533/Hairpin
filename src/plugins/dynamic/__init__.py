@@ -21,7 +21,7 @@ dynamic_program_on = on_command("开启动态推送", priority=3, permission=SUP
 
 
 @dynamic_program_on.handle()
-async def dynamic_receive(bot: Bot, event: Event, state: T_State):
+async def dynamic_program_receive(bot: Bot, event: Event, state: T_State):
     args = str(event.get_message()).strip()
     print(args)
     if args:
@@ -29,16 +29,16 @@ async def dynamic_receive(bot: Bot, event: Event, state: T_State):
 
 
 @dynamic_program_on.got("uid", prompt="请输入要订阅的B站用户的UID")
-async def dynamic_subscription(bot: Bot, event: GroupMessageEvent, state: T_State):
-    dynamic_subscription = Dynamic_Subscription(bot_id=bot.self_id, uid=state["uid"], subscriber_id=event.group_id,
+async def dynamic_program_got(bot: Bot, event: GroupMessageEvent, state: T_State):
+    dynamic_subscription = Dynamic_Subscription(bot_id=bot.self_id, uid=state["uid"], subscriber_id=str(event.group_id),
                                                 send_type=event.message_type)
     result = await dynamic_subscription.insert()
     await dynamic_program_on.finish(str(result.info))
 
 
 @dynamic_program_on.got("uid", prompt="请输入要订阅的B站用户的UID")
-async def dynamic_subscription(bot: Bot, event: PrivateMessageEvent, state: T_State):
-    dynamic_subscription = Dynamic_Subscription(bot_id=bot.self_id, uid=state["uid"], subscriber_id=event.user_id,
+async def dynamic_program_got(bot: Bot, event: PrivateMessageEvent, state: T_State):
+    dynamic_subscription = Dynamic_Subscription(bot_id=bot.self_id, uid=state["uid"], subscriber_id=str(event.user_id),
                                                 send_type=event.message_type)
     result = await dynamic_subscription.insert()
     await dynamic_program_on.finish(str(result.info))
@@ -56,11 +56,10 @@ async def dynamic_push(subscribers, dynamic_id, image):
             send_id = "user_id"
         else:
             send_id = "group_id"
-        print(send_id, subscriber.send_type, subscriber.subscriber_id)
         try:
             await bot.call_api("send_" + subscriber.send_type + "_msg", **{
                 "message": message,
-                "group_id": subscriber.subscriber_id
+                send_id: subscriber.subscriber_id
             })
         except ActionFailed as e:
             print(e)

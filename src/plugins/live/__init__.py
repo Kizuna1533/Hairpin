@@ -3,7 +3,7 @@
 import nonebot
 from nonebot import get_driver, on_command
 from nonebot.adapters import Bot, Event
-from nonebot.adapters.cqhttp import MessageSegment, ActionFailed
+from nonebot.adapters.cqhttp import MessageSegment, ActionFailed, GroupMessageEvent, PrivateMessageEvent
 from nonebot.permission import SUPERUSER
 from nonebot.typing import T_State
 from nonebot_plugin_apscheduler import scheduler
@@ -20,15 +20,23 @@ live_program_on = on_command("开启直播推送", priority=3, permission=SUPERU
 
 
 @live_program_on.handle()
-async def live_receive(bot: Bot, event: Event, state: T_State):
+async def live_program_receive(bot: Bot, event: Event, state: T_State):
     args = str(event.get_message()).strip()
     if args:
         state["uid"] = args
 
 
 @live_program_on.got("uid", prompt="请输入要订阅的B站用户的UID")
-async def live_subscription(bot: Bot, event: Event, state: T_State):
-    live_subscription = Live_Subscription(uid=state["uid"], subscriber_id=event.group_id,
+async def live_program_got(bot: Bot, event: GroupMessageEvent, state: T_State):
+    live_subscription = Live_Subscription(bot_id=bot.self_id, uid=state["uid"], subscriber_id=str(event.group_id),
+                                          send_type=event.message_type)
+    result = await live_subscription.insert()
+    await live_program_on.finish(str(result.info))
+
+
+@live_program_on.got("uid", prompt="请输入要订阅的B站用户的UID")
+async def live_program_got(bot: Bot, event: PrivateMessageEvent, state: T_State):
+    live_subscription = Live_Subscription(bot_id=bot.self_id, uid=state["uid"], subscriber_id=str(event.user_id),
                                           send_type=event.message_type)
     result = await live_subscription.insert()
     await live_program_on.finish(str(result.info))
@@ -59,7 +67,7 @@ tmp_live_status = {}
 @scheduler.scheduled_job("interval", seconds=10, id="live_push")
 async def live_spider():
     # 初始化实例
-    live_subscription = Live_Subscription(uid="0", subscriber_id="0", send_type="")
+    live_subscription = Live_Subscription(bot_id="0", uid="0", subscriber_id="0", send_type="")
     # 数据库取全部uids
     uids = await live_subscription.select_uids()
     new_live_status_list = await get_live_status_list(uids.result)

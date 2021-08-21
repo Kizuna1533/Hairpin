@@ -234,11 +234,13 @@ class Dynamic_Subscription(Base):
 class Live_Subscription(Base):
     __tablename__ = "Live_Subscription"
     id = Column(Integer, nullable=False, primary_key=True, index=True, autoincrement=True)
+    bot_id = Column(String(16), nullable=False, comment="Bot_id")
     uid = Column(String(16), nullable=False, comment="B站UID")
     subscriber_id = Column(String(16), nullable=False, comment="QQ/群号")
     send_type = Column(String(10), nullable=False, comment="1：QQ 2：群")
 
-    def __init__(self, uid: str, subscriber_id: str, send_type: str):
+    def __init__(self, bot_id: str, uid: str, subscriber_id: str, send_type: str):
+        self.bot_id = bot_id
         self.uid = uid
         self.subscriber_id = subscriber_id
         self.send_type = send_type
@@ -410,6 +412,217 @@ class Welcome_Subscription(Base):
                     try:
                         session_result = await session.execute(
                             select(Welcome_Subscription).where(Welcome_Subscription.status == self.status))
+                        result = Result.ListResult(error=False, info="Exist", result=session_result.scalars().all())
+                    except NoResultFound:
+                        result = Result.ListResult(error=False, info="Select_No_Result", result=[])
+            except MultipleResultsFound:
+                result = Result.ListResult(error=True, info="Multiple_Results_Found", result=[])
+            except Exception as e:
+                result = Result.ListResult(error=True, info=repr(e), result=[])
+        return result
+
+
+class Task_Subscription(Base):
+    __tablename__ = "Task_Subscription"
+    id = Column(Integer, nullable=False, primary_key=True, index=True, autoincrement=True)
+    bot_id = Column(String(16), nullable=False, comment="Bot_id")
+    subscriber_id = Column(String(16), nullable=False, comment="qq/群号")
+    interval_time = Column(Integer, nullable=False, comment="间隔时间")
+    content = Column(Text, nullable=False, comment="内容")
+    send_type = Column(String(10), nullable=False, comment="私聊/群")
+
+    def __init__(self, bot_id: str, subscriber_id: str, interval_time: int, content: str, send_type: str):
+        self.bot_id = bot_id
+        self.subscriber_id = subscriber_id
+        self.interval_time = interval_time
+        self.content = content
+        self.send_type = send_type
+
+    async def insert(self):
+        async_session = DB().get_async_session()
+        async with async_session() as session:
+            try:
+                async with session.begin():
+                    try:
+                        result = await self.select()
+                        if not result.error and result.result == 1:
+                            session.add(self)
+                            result = Result.IntResult(error=False, info="Insert_Success", result=1)
+                    except Exception as e:
+                        result = Result.IntResult(error=True, info=repr(e), result=-1)
+                await session.commit()
+            except MultipleResultsFound:
+                result = Result.IntResult(error=True, info="Multiple_Results_Found", result=-1)
+            except Exception as e:
+                result = Result.IntResult(error=True, info=repr(e), result=-1)
+        return result
+
+    async def delete(self):
+        async_session = DB().get_async_session()
+        async with async_session() as session:
+            try:
+                async with session.begin():
+                    try:
+                        result = await self.select_by_self()
+                        if not result.error and isinstance(result.result, Task_Subscription):
+                            await session.delete(result.result)
+                            result = Result.IntResult(error=False, info="Delete_Success", result=1)
+                    except Exception as e:
+                        result = Result.IntResult(error=True, info=repr(e), result=-1)
+                await session.commit()
+            except MultipleResultsFound:
+                result = Result.IntResult(error=True, info="Multiple_Results_Found", result=-1)
+            except Exception as e:
+                result = Result.IntResult(error=True, info=repr(e), result=-1)
+        return result
+
+    async def select(self):
+        async_session = DB().get_async_session()
+        async with async_session() as session:
+            try:
+                async with session.begin():
+                    try:
+                        session_result = await session.execute(select(Task_Subscription).where(
+                            Task_Subscription.id == self.id))
+                        subscription = session_result.scalar_one()
+                        result = Result.IntResult(error=False, info="Exist", result=subscription)
+                    except NoResultFound:
+                        result = Result.IntResult(error=False, info="Select_No_Result", result=1)
+            except MultipleResultsFound:
+                result = Result.IntResult(error=True, info="Multiple_Results_Found", result=-1)
+            except Exception as e:
+                result = Result.IntResult(error=True, info=repr(e), result=-1)
+        return result
+
+    async def select_all(self):
+        async_session = DB().get_async_session()
+        async with async_session() as session:
+            try:
+                async with session.begin():
+                    try:
+                        session_result = await session.execute(select(Task_Subscription))
+                        result = Result.ListResult(error=False, info="Exist", result=session_result.scalars().all())
+                    except NoResultFound:
+                        result = Result.ListResult(error=False, info="Select_No_Result", result=[])
+            except MultipleResultsFound:
+                result = Result.ListResult(error=True, info="Multiple_Results_Found", result=[])
+            except Exception as e:
+                result = Result.ListResult(error=True, info=repr(e), result=[])
+        return result
+
+    async def select_by_self(self):
+        async_session = DB().get_async_session()
+        async with async_session() as session:
+            try:
+                async with session.begin():
+                    try:
+                        session_result = await session.execute(
+                            select(Task_Subscription).where(
+                                Task_Subscription.subscriber_id == self.subscriber_id).where(
+                                Task_Subscription.bot_id == self.bot_id).where(Task_Subscription.id == self.id))
+                        subscription = session_result.scalar_one()
+                        result = Result.ListResult(error=False, info="Exist", result=subscription)
+                    except NoResultFound:
+                        result = Result.ListResult(error=False, info="Select_No_Result", result=["啥也没有"])
+            except MultipleResultsFound:
+                result = Result.ListResult(error=True, info="Multiple_Results_Found", result=[])
+            except Exception as e:
+                result = Result.ListResult(error=True, info=repr(e), result=[])
+        return result
+
+    async def select_all_by_self(self):
+        async_session = DB().get_async_session()
+        async with async_session() as session:
+            try:
+                async with session.begin():
+                    try:
+                        session_result = await session.execute(
+                            select(Task_Subscription).where(
+                                Task_Subscription.subscriber_id == self.subscriber_id).where(
+                                Task_Subscription.bot_id == self.bot_id))
+                        result = Result.ListResult(error=False, info="Exist", result=session_result.scalars().all())
+                    except NoResultFound:
+                        result = Result.ListResult(error=False, info="Select_No_Result", result=[])
+            except MultipleResultsFound:
+                result = Result.ListResult(error=True, info="Multiple_Results_Found", result=[])
+            except Exception as e:
+                result = Result.ListResult(error=True, info=repr(e), result=[])
+        return result
+
+
+class Recipes(Base):
+    __tablename__ = "Recipes"
+    id = Column(Integer, nullable=False, primary_key=True, index=True, autoincrement=True)
+    name = Column(String(16), nullable=False, comment="菜名")
+    content = Column(BLOB, nullable=False, primary_key=False, comment="图片")
+
+    def __init__(self, name: str, content: bytes):
+        self.name = name
+        self.content = content
+
+    async def insert(self):
+        async_session = DB().get_async_session()
+        async with async_session() as session:
+            try:
+                async with session.begin():
+                    try:
+                        result = await self.select()
+                        if not result.error and result.result == 1:
+                            session.add(self)
+                            result = Result.IntResult(error=False, info="Insert_Success", result=1)
+                    except Exception as e:
+                        result = Result.IntResult(error=True, info=repr(e), result=-1)
+                await session.commit()
+            except MultipleResultsFound:
+                result = Result.IntResult(error=True, info="Multiple_Results_Found", result=-1)
+            except Exception as e:
+                result = Result.IntResult(error=True, info=repr(e), result=-1)
+        return result
+
+    async def delete(self):
+        async_session = DB().get_async_session()
+        async with async_session() as session:
+            try:
+                async with session.begin():
+                    try:
+                        result = await self.select()
+                        if not result.error and isinstance(result.result, Recipes):
+                            await session.delete(result.result)
+                            result = Result.IntResult(error=False, info="Delete_Success", result=1)
+                    except Exception as e:
+                        result = Result.IntResult(error=True, info=repr(e), result=-1)
+                await session.commit()
+            except MultipleResultsFound:
+                result = Result.IntResult(error=True, info="Multiple_Results_Found", result=-1)
+            except Exception as e:
+                result = Result.IntResult(error=True, info=repr(e), result=-1)
+        return result
+
+    async def select(self):
+        async_session = DB().get_async_session()
+        async with async_session() as session:
+            try:
+                async with session.begin():
+                    try:
+                        session_result = await session.execute(select(Recipes).where(
+                            Recipes.name == self.name))
+                        subscription = session_result.scalar_one()
+                        result = Result.IntResult(error=False, info="Exist", result=subscription)
+                    except NoResultFound:
+                        result = Result.IntResult(error=False, info="Select_No_Result", result=1)
+            except MultipleResultsFound:
+                result = Result.IntResult(error=True, info="Multiple_Results_Found", result=-1)
+            except Exception as e:
+                result = Result.IntResult(error=True, info=repr(e), result=-1)
+        return result
+
+    async def select_all(self):
+        async_session = DB().get_async_session()
+        async with async_session() as session:
+            try:
+                async with session.begin():
+                    try:
+                        session_result = await session.execute(select(Recipes))
                         result = Result.ListResult(error=False, info="Exist", result=session_result.scalars().all())
                     except NoResultFound:
                         result = Result.ListResult(error=False, info="Select_No_Result", result=[])
