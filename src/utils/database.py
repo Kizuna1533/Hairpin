@@ -15,7 +15,7 @@ global_config = nonebot.get_driver().config
 __PROJECT_ROOT__ = global_config.project_root
 try:
     engine = create_async_engine(f"sqlite+aiosqlite:///{__PROJECT_ROOT__}/Hairpin.db", encoding="utf8",
-                                 pool_recycle=3600, pool_pre_ping=True, echo=True, future=True)
+                                 pool_recycle=3600, pool_pre_ping=True, echo=False, future=True)
 except Exception as exp:
     import sys
 

@@ -23,7 +23,7 @@ async def welcome_receive(bot: Bot, event: GroupMessageEvent, state: T_State):
         state["content"] = args
 
 
-@welcome_program_on.got("content", prompt="请输入要订阅的B站用户的UID")
+@welcome_program_on.got("content", prompt="请输入欢迎内容")
 async def welcome_subscription(bot: Bot, event: Event, state: T_State):
     dynamic_subscription = Welcome_Subscription(subscriber_id=event.group_id, status=True, content=state["content"])
     welcome_dict[event.group_id] = state["content"]
@@ -44,10 +44,8 @@ async def welcome_notice(bot: Bot, event: GroupIncreaseNoticeEvent, state: T_Sta
 async def welcome_init():
     welcome_subscription = Welcome_Subscription(subscriber_id="", status=True, content="")
     welcome_subscribers = await welcome_subscription.select_subscribers()
-    print("1" * 90)
     for welcome_subscriber in welcome_subscribers.result:
         welcome_dict[welcome_subscriber.subscriber_id] = welcome_subscriber.content
-        print(welcome_subscriber.subscriber_id, welcome_subscriber.content)
 
 
 nonebot.get_driver().on_startup(welcome_init)

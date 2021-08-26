@@ -1,4 +1,5 @@
 import time
+from datetime import datetime
 
 import nonebot
 from nonebot import get_driver, on_command, logger
@@ -30,7 +31,6 @@ async def task_program_receive(bot: Bot, event: Event, state: T_State):
 @task_program_on.got("content", prompt="请输入提醒内容，格式为间隔时间 内容，两者以空格隔开")
 async def task_program_got(bot: Bot, event: GroupMessageEvent, state: T_State):
     res = str(state["content"]).split(' ')
-    print(res)
     if is_number(res[0]):
         interval_time = int(res[0])
         content = res[1]
@@ -72,7 +72,6 @@ async def task_program_receive(bot: Bot, event: Event, state: T_State):
     args = str(event.get_message()).strip()
     if args:
         task_id = str(args)
-        print(task_id, type(task_id))
         if is_number(task_id):
             task_subscription.id = task_id
             delete_result = await task_subscription.delete()
@@ -85,13 +84,12 @@ async def task_program_receive(bot: Bot, event: Event, state: T_State):
 
 @scheduler.scheduled_job("interval", seconds=1, id="task_push")
 async def task_push():
-    print(1)
     task_subscription = Task_Subscription(bot_id="", subscriber_id="", interval_time=0, content="", send_type="")
     task_all = await task_subscription.select_all()
     for task in task_all.result:
-        print("-" * 90)
-        print(task.content, task.interval_time, int(time.time() % task.interval_time))
         if int(time.time() % task.interval_time) == 0:
+            print(task.subscriber_id, task.content, task.interval_time)
+            now = datetime.now()
             try:
                 bot = nonebot.get_bots()[str(task.bot_id)]
             except KeyError:
@@ -103,7 +101,7 @@ async def task_push():
                 send_id = "group_id"
             try:
                 await bot.call_api("send_" + task.send_type + "_msg", **{
-                    "message": task.content,
+                    "message": f"现在是{now.year}年{now.month}月{now.day}日{now.hour}时{now.minute}分\n" + task.content,
                     send_id: task.subscriber_id
                 })
             except ActionFailed as e:
