@@ -64,7 +64,7 @@ async def live_push(subscribers, live_message):
 tmp_live_status = {}
 
 
-@scheduler.scheduled_job("interval", seconds=10, id="live_push")
+@scheduler.scheduled_job("interval", seconds=10, id="live_push", max_instances=10)
 async def live_spider():
     # 初始化实例
     live_subscription = Live_Subscription(bot_id="0", uid="0", subscriber_id="0", send_type="")

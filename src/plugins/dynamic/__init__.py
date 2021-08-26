@@ -65,7 +65,7 @@ async def dynamic_push(subscribers, dynamic_id, image):
             print(e)
 
 
-@scheduler.scheduled_job("interval", seconds=10, id="dynamic_push")
+@scheduler.scheduled_job("interval", seconds=10, id="dynamic_push", max_instances=10)
 async def dynamic_spider():
     # 初始化实例
     dynamic_subscription = Dynamic_Subscription(bot_id="0", uid="0", subscriber_id="0", send_type="")
