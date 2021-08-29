@@ -631,3 +631,84 @@ class Recipes(Base):
             except Exception as e:
                 result = Result.ListResult(error=True, info=repr(e), result=[])
         return result
+
+
+class Alert(Base):
+    __tablename__ = "Alert"
+    id = Column(Integer, nullable=False, primary_key=True, index=True, autoincrement=True)
+    alert_id = Column(String(16), nullable=False, comment="id")
+    content = Column(BLOB, nullable=False, primary_key=False, comment="图片")
+
+    def __init__(self, alert_id: str, content: bytes):
+        self.alert_id = alert_id
+        self.content = content
+
+    async def insert(self):
+        async_session = DB().get_async_session()
+        async with async_session() as session:
+            try:
+                async with session.begin():
+                    try:
+                        session.add(self)
+                        result = Result.IntResult(error=False, info="Insert_Success", result=1)
+                    except Exception as e:
+                        result = Result.IntResult(error=True, info=repr(e), result=-1)
+                await session.commit()
+            except MultipleResultsFound:
+                result = Result.IntResult(error=True, info="Multiple_Results_Found", result=-1)
+            except Exception as e:
+                result = Result.IntResult(error=True, info=repr(e), result=-1)
+        return result
+
+    async def delete(self):
+        async_session = DB().get_async_session()
+        async with async_session() as session:
+            try:
+                async with session.begin():
+                    try:
+                        result = await self.select()
+                        if not result.error and isinstance(result.result, Alert):
+                            await session.delete(result.result)
+                            result = Result.IntResult(error=False, info="Delete_Success", result=1)
+                    except Exception as e:
+                        result = Result.IntResult(error=True, info=repr(e), result=-1)
+                await session.commit()
+            except MultipleResultsFound:
+                result = Result.IntResult(error=True, info="Multiple_Results_Found", result=-1)
+            except Exception as e:
+                result = Result.IntResult(error=True, info=repr(e), result=-1)
+        return result
+
+    async def select(self):
+        async_session = DB().get_async_session()
+        async with async_session() as session:
+            try:
+                async with session.begin():
+                    try:
+                        session_result = await session.execute(select(Alert).where(Alert.id == Alert.id))
+                        subscription = session_result.scalar_one()
+                        result = Result.IntResult(error=False, info="Exist", result=subscription)
+                    except NoResultFound:
+                        result = Result.IntResult(error=False, info="Select_No_Result", result=1)
+            except MultipleResultsFound:
+                result = Result.IntResult(error=True, info="Multiple_Results_Found", result=-1)
+            except Exception as e:
+                result = Result.IntResult(error=True, info=repr(e), result=-1)
+        return result
+
+    async def select_all(self):
+        async_session = DB().get_async_session()
+        async with async_session() as session:
+            try:
+                async with session.begin():
+                    try:
+                        session_result = await session.execute(select(Alert).where(
+                            Alert.alert_id == self.alert_id))
+                        result = Result.ListResult(error=False, info="Exist", result=session_result.scalars().all())
+                    except NoResultFound:
+                        result = Result.ListResult(error=False, info="Select_No_Result", result=[])
+            except MultipleResultsFound:
+                result = Result.ListResult(error=True, info="Multiple_Results_Found", result=[])
+            except Exception as e:
+                result = Result.ListResult(error=True, info=repr(e), result=[])
+        return result

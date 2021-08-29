@@ -49,17 +49,6 @@ recipes_program = on_command("添加菜单", priority=3, permission=SUPERUSER | 
 
 @recipes_program.handle()
 async def eat_program_receive(bot: Bot, event: Event, state: T_State):
-    # path = "../foods/"
-    # res = os.listdir(path)
-    # for i in res:
-    #     if i.endswith('jpg'):
-    #         print(path + i)
-    #         name = i.replace('.jpg', '')
-    #         f = base64.b64encode(open(path + i, "rb").read())
-    #         rec = Recipes(name=name, content=f)
-    #         r = await rec.insert()
-    #         print(f.decode(), name)
-
     args = str(event.get_message()).strip()
     if args:
         state["content"] = args

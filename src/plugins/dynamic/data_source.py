@@ -58,7 +58,7 @@ async def get_dynamics_screenshot(dynamic_id, retry=3):
         try:
             await page.goto(dynamic_url % dynamic_id)
             await page.waitForSelector("div[class=card-content]")
-            await page.setViewport(viewport={"width": 2000, "height": 1080})
+            await page.setViewport(viewport={"width": 2160, "height": 1080})
             card = await page.querySelector("div[class=detail-card]")
             assert card is not None
             clip = await card.boundingBox()

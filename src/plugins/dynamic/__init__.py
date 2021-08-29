@@ -44,6 +44,33 @@ async def dynamic_program_got(bot: Bot, event: PrivateMessageEvent, state: T_Sta
     await dynamic_program_on.finish(str(result.info))
 
 
+dynamic_program_off = on_command("关闭动态推送", priority=3, permission=SUPERUSER)
+
+
+@dynamic_program_off.handle()
+async def dynamic_program_receive(bot: Bot, event: Event, state: T_State):
+    args = str(event.get_message()).strip()
+    print(args)
+    if args:
+        state["uid"] = args
+
+
+@dynamic_program_off.got("uid", prompt="请输入要关闭订阅的B站用户的UID")
+async def dynamic_program_got(bot: Bot, event: GroupMessageEvent, state: T_State):
+    dynamic_subscription = Dynamic_Subscription(bot_id=bot.self_id, uid=state["uid"], subscriber_id=str(event.group_id),
+                                                send_type=event.message_type)
+    result = await dynamic_subscription.delete()
+    await dynamic_program_off.finish(str(result.info))
+
+
+@dynamic_program_off.got("uid", prompt="请输入要关闭订阅的B站用户的UID")
+async def dynamic_program_got(bot: Bot, event: PrivateMessageEvent, state: T_State):
+    dynamic_subscription = Dynamic_Subscription(bot_id=bot.self_id, uid=state["uid"], subscriber_id=str(event.user_id),
+                                                send_type=event.message_type)
+    result = await dynamic_subscription.delete()
+    await dynamic_program_off.finish(str(result.info))
+
+
 async def dynamic_push(subscribers, dynamic_id, image):
     message = f"https://t.bilibili.com/{dynamic_id}?tab=2 \n" + MessageSegment.image(f"base64://{image}")
     for subscriber in subscribers:
@@ -65,7 +92,7 @@ async def dynamic_push(subscribers, dynamic_id, image):
             print(e)
 
 
-@scheduler.scheduled_job("interval", seconds=10, id="dynamic_push", max_instances=10)
+@scheduler.scheduled_job("interval", seconds=10, id="dynamic_push", max_instances=3)
 async def dynamic_spider():
     # 初始化实例
     dynamic_subscription = Dynamic_Subscription(bot_id="0", uid="0", subscriber_id="0", send_type="")

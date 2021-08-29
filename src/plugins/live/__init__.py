@@ -64,7 +64,7 @@ async def live_push(subscribers, live_message):
 tmp_live_status = {}
 
 
-@scheduler.scheduled_job("interval", seconds=10, id="live_push", max_instances=10)
+@scheduler.scheduled_job("interval", seconds=10, id="live_push", max_instances=3)
 async def live_spider():
     # 初始化实例
     live_subscription = Live_Subscription(bot_id="0", uid="0", subscriber_id="0", send_type="")
@@ -77,8 +77,8 @@ async def live_spider():
         print(uid, info['live_status'], tmp_live_status)
         new_status = 0 if info['live_status'] == 2 else info['live_status']
         if uid not in tmp_live_status:
-            tmp_live_status[uid] = 0
-            # continue
+            tmp_live_status[uid] = new_status
+            continue
         old_status = tmp_live_status[uid]
         if new_status != old_status and new_status:  # 判断是否推送过
             room_id = info['short_id'] if info['short_id'] else info['room_id']

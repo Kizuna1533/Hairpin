@@ -18,6 +18,8 @@ listen_other = on_regex(r".*?", priority=5)
 
 @listen_other.handle()
 async def listen_receive(bot: Bot, event: Event, state: T_State):
-    if event.get_user_id() == str(AMF_ID) and randint(0, 100) <= 0:
-        message = MessageSegment.image(f"file:///{PROJECT_ROOT}/WhereCard.png")
-        await listen_other.send(message)
+    # if event.get_user_id() == str(AMF_ID) and randint(0, 100) <= 0:
+    #     message = MessageSegment.reply(int(event.message_id)) + MessageSegment.image(f"file:///{PROJECT_ROOT}/WhereCard.png")
+    #     await listen_other.send(message)
+    if randint(0, 100) <= 0:
+        await listen_other.send(event.get_message)
