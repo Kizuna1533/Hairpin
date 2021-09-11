@@ -1,7 +1,10 @@
 # @Author: South
 # @Date: 2021-08-14 10:56
+import base64
+from typing import Optional
+
 import httpx
-from pyppeteer import launch
+from playwright.async_api import Browser, async_playwright
 
 dynamic_url = "https://t.bilibili.com/%s?tab=3"
 space_history = "https://api.vc.bilibili.com/dynamic_svr/v1/dynamic_svr/space_history?visitor_uid=%s&host_uid=%s&offset_dynamic_id=%s&need_top=0"
@@ -12,6 +15,19 @@ space_headers = {"Origin": "https://space.bilibili.com", "Accept": "application/
                  "Referer": "https://space.bilibili.com/", "Sec-Fetch-Site": "same-site", "Sec-Fetch-Dest": "empty",
                  "DNT": "1", "Accept-Encoding": "gzip, deflate", "Accept-Language": "zh-CN,zh;q=0.9",
                  "Sec-Fetch-Mode": "cors"}
+
+_browser: Optional[Browser] = None
+
+
+async def init(**kwargs) -> Browser:
+    global _browser
+    browser = await async_playwright().start()
+    _browser = await browser.chromium.launch(**kwargs)
+    return _browser
+
+
+async def get_browser(**kwargs) -> Browser:
+    return _browser or await init(**kwargs)
 
 
 async def get_dynamic_list(uid, offset_dynamic_id=0):
@@ -51,21 +67,21 @@ async def get_dynamics_screenshot(dynamic_id, retry=3):
         Returns:
             void.
     """
-    browser = await launch(args=["--no-sandbox"], waitUntil="networkidle0", timeout=10000, handleSIGINT=False,
-                           handleSIGTERM=False, handleSIGHUP=False)
-    page = await browser.newPage()
+    browser = await get_browser()
+    page = None
     for i in range(retry + 1):
         try:
-            await page.goto(dynamic_url % dynamic_id)
-            await page.waitForSelector("div[class=card-content]")
-            await page.setViewport(viewport={"width": 2160, "height": 1080})
-            card = await page.querySelector("div[class=detail-card]")
+            page = await browser.new_page()
+            await page.goto(dynamic_url % dynamic_id, wait_until='networkidle', timeout=10000)
+            await page.set_viewport_size({"width": 1980, "height": 1080})
+            card = await page.query_selector(".detail-card")
             assert card is not None
-            clip = await card.boundingBox()
-            image = await page.screenshot(clip=clip, encoding="base64")
-            await browser.close()
-            return image
-        except Exception as e:
-            if i >= retry:
-                await browser.close()
-                raise
+            clip = await card.bounding_box()
+            assert clip is not None
+            image = await page.screenshot(clip=clip)
+            await page.close()
+            return base64.b64encode(image).decode()
+        except Exception:
+            if page:
+                await page.close()
+            raise

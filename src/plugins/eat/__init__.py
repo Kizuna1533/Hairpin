@@ -44,7 +44,7 @@ async def live_subscription(bot: Bot, event: Event, state: T_State):
             await eat_program_on.finish(message)
 
 
-recipes_program = on_command("添加菜单", priority=3, permission=SUPERUSER | GROUP_ADMIN | GROUP_OWNER)
+recipes_program = on_command("加菜", priority=3, permission=SUPERUSER | GROUP_ADMIN | GROUP_OWNER)
 
 
 @recipes_program.handle()
@@ -54,7 +54,7 @@ async def eat_program_receive(bot: Bot, event: Event, state: T_State):
         state["content"] = args
 
 
-@recipes_program.got("content", prompt="输入：添加菜单 菜名 图片")
+@recipes_program.got("content", prompt="输入：加菜 菜名 图片")
 async def eat_program_got(bot: Bot, event: Event, state: T_State):
     name = str(state["content"]).split(' ')[0]
     message_image = re.findall(r'.*?file=(.*?\.image)', str(state["content"]).split(' ')[1])[0]
