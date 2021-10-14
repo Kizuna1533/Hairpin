@@ -19,7 +19,7 @@ room = live.LiveDanmaku(4611671)
 async def on_all(event):
     data = event["data"]["data"]
     message = "感谢 uid 为 %s 的 %s 老板的 %s 个月 %s ！\n 老板大气老板身体健康老板坐牢必减刑绝症有医保火化必爆舍利子！" % (
-        data["uid"], data["num"], data["username"], data["gift_name"])
+        data["uid"], data["username"], data["num"], data["gift_name"])
     print(message)
     await bot_send(__BOT_ID, __CAPTAIN_GROUP_ID, "group", message)
 

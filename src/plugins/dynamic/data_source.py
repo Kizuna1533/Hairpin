@@ -73,7 +73,7 @@ async def get_dynamics_screenshot(dynamic_id, retry=3):
         try:
             page = await browser.new_page()
             await page.goto(dynamic_url % dynamic_id, wait_until='networkidle', timeout=10000)
-            await page.set_viewport_size({"width": 1980, "height": 1080})
+            await page.set_viewport_size({"width": 1980, "height": 2160})
             card = await page.query_selector(".detail-card")
             assert card is not None
             clip = await card.bounding_box()
