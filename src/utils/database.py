@@ -712,3 +712,181 @@ class Alert(Base):
             except Exception as e:
                 result = Result.ListResult(error=True, info=repr(e), result=[])
         return result
+
+
+class Weibo_Record(Base):
+    __tablename__ = "Weibo_Record"
+    id = Column(Integer, nullable=False, primary_key=True, index=True, autoincrement=True)
+    uid = Column(String(25), nullable=False, primary_key=False)
+    weibo_id = Column(String(25), nullable=False, primary_key=False)
+    content = Column(BLOB, nullable=False, primary_key=False)
+    time = Column(DATETIME, nullable=False, primary_key=False, default=datetime.now)
+
+    def __init__(self, uid: str):
+        self.uid = uid
+
+    async def insert(self, weibo_id: str, content: bytes, time=datetime.now()):
+        self.weibo_id = weibo_id
+        self.content = content
+        self.time = time
+        async_session = DB().get_async_session()
+        async with async_session() as session:
+            try:
+                async with session.begin():
+                    try:
+                        result = await self.select(weibo_id)
+                        if not result.error and result.result == 1:
+                            session.add(self)
+                            result = Result.IntResult(error=False, info="Insert_Success", result=1)
+                    except Exception as e:
+                        result = Result.IntResult(error=True, info=repr(e), result=-1)
+                await session.commit()
+            except MultipleResultsFound:
+                result = Result.IntResult(error=True, info="Multiple_Results_Found", result=-1)
+            except Exception as e:
+                result = Result.IntResult(error=True, info=repr(e), result=-1)
+        return result
+
+    async def select(self, weibo_id: str):
+        async_session = DB().get_async_session()
+        async with async_session() as session:
+            try:
+                async with session.begin():
+                    try:
+                        session_result = await session.execute(select(Weibo_Record).where(
+                            Weibo_Record.weibo_id == weibo_id))
+                        record = session_result.scalar_one()
+                        result = Result.IntResult(error=False, info="Exist", result=record)
+                    except NoResultFound:
+                        result = Result.IntResult(error=False, info="Select_No_Result", result=1)
+            except MultipleResultsFound:
+                result = Result.IntResult(error=True, info="Multiple_Results_Found", result=-1)
+            except Exception as e:
+                result = Result.IntResult(error=True, info=repr(e), result=-1)
+        return result
+
+    async def select_last_weibo_id(self):
+        async_session = DB().get_async_session()
+        async with async_session() as session:
+            try:
+                async with session.begin():
+                    try:
+                        session_result = await session.execute(select(func.max(Weibo_Record.weibo_id)).where(
+                            Weibo_Record.uid == self.uid))
+                        record = session_result.scalar_one()
+                        if record:
+                            result = Result.IntResult(error=False, info="Exist", result=record)
+                        else:
+                            result = Result.IntResult(error=False, info="Select_No_Result", result=1)
+                    except NoResultFound:
+                        result = Result.IntResult(error=False, info="Select_No_Result", result=1)
+            except MultipleResultsFound:
+                result = Result.IntResult(error=True, info="Multiple_Results_Found", result=-1)
+            except Exception as e:
+                result = Result.IntResult(error=True, info=repr(e), result=-1)
+        return result
+
+
+class Weibo_Subscription(Base):
+    __tablename__ = "Weibo_Subscription"
+    id = Column(Integer, nullable=False, primary_key=True, index=True, autoincrement=True)
+    bot_id = Column(String(16), nullable=False, comment="Bot_id")
+    uid = Column(String(16), nullable=False, comment="微博UID")
+    subscriber_id = Column(String(16), nullable=False, comment="QQ/群号")
+    send_type = Column(String(10), nullable=False, comment="私聊/群")
+
+    def __init__(self, bot_id: str, uid: str, subscriber_id: str, send_type: str):
+        self.bot_id = bot_id
+        self.uid = uid
+        self.subscriber_id = subscriber_id
+        self.send_type = send_type
+
+    async def insert(self):
+        async_session = DB().get_async_session()
+        async with async_session() as session:
+            try:
+                async with session.begin():
+                    try:
+                        result = await self.select()
+                        if not result.error and result.result == 1:
+                            session.add(self)
+                            result = Result.IntResult(error=False, info="Insert_Success", result=1)
+                    except Exception as e:
+                        result = Result.IntResult(error=True, info=repr(e), result=-1)
+                await session.commit()
+            except MultipleResultsFound:
+                result = Result.IntResult(error=True, info="Multiple_Results_Found", result=-1)
+            except Exception as e:
+                result = Result.IntResult(error=True, info=repr(e), result=-1)
+        return result
+
+    async def delete(self):
+        async_session = DB().get_async_session()
+        async with async_session() as session:
+            try:
+                async with session.begin():
+                    try:
+                        result = await self.select()
+                        if not result.error and isinstance(result.result, Weibo_Subscription):
+                            await session.delete(result.result)
+                            result = Result.IntResult(error=False, info="Delete_Success", result=1)
+                    except Exception as e:
+                        result = Result.IntResult(error=True, info=repr(e), result=-1)
+                await session.commit()
+            except MultipleResultsFound:
+                result = Result.IntResult(error=True, info="Multiple_Results_Found", result=-1)
+            except Exception as e:
+                result = Result.IntResult(error=True, info=repr(e), result=-1)
+        return result
+
+    async def select(self):
+        async_session = DB().get_async_session()
+        async with async_session() as session:
+            try:
+                async with session.begin():
+                    try:
+                        session_result = await session.execute(select(Weibo_Subscription).where(
+                            Weibo_Subscription.uid == self.uid).where(
+                            Weibo_Subscription.subscriber_id == self.subscriber_id))
+                        subscription = session_result.scalar_one()
+                        result = Result.IntResult(error=False, info="Exist", result=subscription)
+                    except NoResultFound:
+                        result = Result.IntResult(error=False, info="Select_No_Result", result=1)
+            except MultipleResultsFound:
+                result = Result.IntResult(error=True, info="Multiple_Results_Found", result=-1)
+            except Exception as e:
+                result = Result.IntResult(error=True, info=repr(e), result=-1)
+        return result
+
+    async def select_subscribers(self):
+        async_session = DB().get_async_session()
+        async with async_session() as session:
+            try:
+                async with session.begin():
+                    try:
+                        session_result = await session.execute(select(Weibo_Subscription).where(
+                            Weibo_Subscription.uid == self.uid))
+                        result = Result.ListResult(error=False, info="Exist", result=session_result.scalars().all())
+                    except NoResultFound:
+                        result = Result.ListResult(error=False, info="Select_No_Result", result=[])
+            except MultipleResultsFound:
+                result = Result.ListResult(error=True, info="Multiple_Results_Found", result=[])
+            except Exception as e:
+                result = Result.ListResult(error=True, info=repr(e), result=[])
+        return result
+
+    async def select_uids(self):
+        async_session = DB().get_async_session()
+        async with async_session() as session:
+            try:
+                async with session.begin():
+                    try:
+                        session_result = await session.execute(select(distinct(Weibo_Subscription.uid)))
+                        result = Result.ListResult(error=False, info="Exist", result=session_result.scalars().all())
+                    except NoResultFound:
+                        result = Result.ListResult(error=False, info="Select_No_Result", result=[])
+            except MultipleResultsFound:
+                result = Result.ListResult(error=True, info="Multiple_Results_Found", result=[])
+            except Exception as e:
+                result = Result.ListResult(error=True, info=repr(e), result=[])
+        return result
